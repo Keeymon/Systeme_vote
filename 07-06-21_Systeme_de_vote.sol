@@ -78,14 +78,14 @@ contract Voting is Ownable {
     }
     
     function proposalsRegistrationStart() public onlyOwner {
-        require(status == WorkflowStatus.RegisteringVoters, "Fire in the hall");
+        require(status == WorkflowStatus.RegisteringVoters, "Invalid Step");
         changeStatus(WorkflowStatus.ProposalsRegistrationStarted);
         emit ProposalsRegistrationStarted();
     }
     
     function proposalRegister(string memory _description) public {
         require(voters[msg.sender].isRegistered == true, "Voter not Registered");
-        require(status == WorkflowStatus.ProposalsRegistrationStarted, "YEAH");
+        require(status == WorkflowStatus.ProposalsRegistrationStarted, "Invalid Step");
         proposals.push(Proposal(_description, 0));
         numberProposals++;
         emit ProposalRegistered(proposals.length);
@@ -99,7 +99,7 @@ contract Voting is Ownable {
     }
     
     function getAllDescription() public view returns(string memory) {
-        require(status > WorkflowStatus.ProposalsRegistrationStarted);
+        require(status > WorkflowStatus.ProposalsRegistrationStarted, "Invalid Step");
         string memory str = "Proposals Description :";
         for (uint i = 0; i < numberProposals; i++) {
             str = string(abi.encodePacked(str, "\n\n", uint2str(i), " - ", proposals[i].description));
@@ -108,15 +108,15 @@ contract Voting is Ownable {
     }
     
     function votingSessionStart() public onlyOwner {
-        require(status == WorkflowStatus.ProposalsRegistrationEnded, "FIIIRE");
+        require(status == WorkflowStatus.ProposalsRegistrationEnded, "Invalid Step");
         changeStatus(WorkflowStatus.VotingSessionStarted);
         emit VotingSessionStarted();
     }
     
     function vote(uint _proposalId) public {
         require(voters[msg.sender].isRegistered == true, "Voter not Registered");
-        require(voters[msg.sender].hasVoted == false, "T'abuses vraiment la");
-        require(_proposalId <= numberProposals - 1, "T'abuses");
+        require(voters[msg.sender].hasVoted == false, "Vote already taken");
+        require(_proposalId <= numberProposals - 1, "Invalid proposal");
         voters[msg.sender].hasVoted = true;
         voters[msg.sender].votedProposalId = _proposalId;
         proposals[_proposalId].voteCount++;
@@ -124,14 +124,14 @@ contract Voting is Ownable {
     }
     
     function votingSessionEnd() public onlyOwner {
-        require(status == WorkflowStatus.VotingSessionStarted, "I'm a firestarter, you're a firestarter");
+        require(status == WorkflowStatus.VotingSessionStarted, "Invalid Step");
         changeStatus(WorkflowStatus.VotingSessionEnded);
         emit VotingSessionEnded();
     }
     
     function defineWinner() public onlyOwner returns(uint) {
-        require(status == WorkflowStatus.VotingSessionEnded, "O");
-        require(numberProposals > 0, "On est dans la matrice");
+        require(status == WorkflowStatus.VotingSessionEnded, "Invalid Step");
+        require(numberProposals > 0, "Error, no proposal");
         for (uint i = 0; i < numberProposals; i++) {
             if (proposals[winningProposalId].voteCount < proposals[i].voteCount)
                 winningProposalId = i;
@@ -142,12 +142,12 @@ contract Voting is Ownable {
     }
     
     function getWinner() public view returns(string memory) {
-        require(status == WorkflowStatus.VotesTallied, "Bande de chacaux");
+        require(status == WorkflowStatus.VotesTallied, "Invalid Step");
         return string(proposals[winningProposalId].description);
     }
     
     function whoDidYouVoteFor(address _address) public view returns(uint) {
-        require(status == WorkflowStatus.VotesTallied, "A faire");
+        require(status == WorkflowStatus.VotesTallied, "Invalid Step");
         return voters[_address].votedProposalId;
     }
 }
