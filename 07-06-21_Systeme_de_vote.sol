@@ -40,6 +40,11 @@ contract Voting is Ownable {
     Proposal[] proposals;
     WorkflowStatus private status;
     
+    modifier checkStatus(WorkflowStatus _status) {
+        require(status == _status, "Invalid Step");
+        _;
+    }
+    
     function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) {
             return "0";
@@ -71,29 +76,26 @@ contract Voting is Ownable {
         emit WorkflowStatusChange(status, _status);
     }
     
-    function voterRegister(address _voter) public onlyOwner {
-        require(status == WorkflowStatus.RegisteringVoters);
+    function voterRegister(address _voter) public onlyOwner checkStatus(WorkflowStatus.RegisteringVoters) {
+        require(voters[_voter].isRegistered == false, "Already Registered");
         voters[_voter].isRegistered = true;
         emit VoterRegistered(_voter);
     }
     
-    function proposalsRegistrationStart() public onlyOwner {
-        require(status == WorkflowStatus.RegisteringVoters, "Invalid Step");
+    function proposalsRegistrationStart() public onlyOwner checkStatus(WorkflowStatus.RegisteringVoters) {
         changeStatus(WorkflowStatus.ProposalsRegistrationStarted);
         emit ProposalsRegistrationStarted();
     }
     
-    function proposalRegister(string memory _description) public {
+    function proposalRegister(string memory _description) public checkStatus(WorkflowStatus.ProposalsRegistrationStarted) {
         require(voters[msg.sender].isRegistered == true, "Voter not Registered");
-        require(status == WorkflowStatus.ProposalsRegistrationStarted, "Invalid Step");
         proposals.push(Proposal(_description, 0));
         numberProposals++;
         emit ProposalRegistered(proposals.length);
     }
     
-    function proposalsRegistrationEnd() public onlyOwner {
+    function proposalsRegistrationEnd() public onlyOwner checkStatus(WorkflowStatus.ProposalsRegistrationStarted) {
         require(numberProposals > 1, "We need more proposals");
-        require(status == WorkflowStatus.ProposalsRegistrationStarted, "");
         changeStatus(WorkflowStatus.ProposalsRegistrationEnded);
         emit ProposalsRegistrationEnded();
     }
@@ -107,13 +109,12 @@ contract Voting is Ownable {
         return str;
     }
     
-    function votingSessionStart() public onlyOwner {
-        require(status == WorkflowStatus.ProposalsRegistrationEnded, "Invalid Step");
+    function votingSessionStart() public onlyOwner checkStatus(WorkflowStatus.ProposalsRegistrationEnded) {
         changeStatus(WorkflowStatus.VotingSessionStarted);
         emit VotingSessionStarted();
     }
     
-    function vote(uint _proposalId) public {
+    function vote(uint _proposalId) public checkStatus(WorkflowStatus.VotingSessionStarted) {
         require(voters[msg.sender].isRegistered == true, "Voter not Registered");
         require(voters[msg.sender].hasVoted == false, "Vote already taken");
         require(_proposalId <= numberProposals - 1, "Invalid proposal");
@@ -123,14 +124,12 @@ contract Voting is Ownable {
         emit Voted(msg.sender, _proposalId);
     }
     
-    function votingSessionEnd() public onlyOwner {
-        require(status == WorkflowStatus.VotingSessionStarted, "Invalid Step");
+    function votingSessionEnd() public onlyOwner checkStatus(WorkflowStatus.VotingSessionStarted) {
         changeStatus(WorkflowStatus.VotingSessionEnded);
         emit VotingSessionEnded();
     }
     
-    function defineWinner() public onlyOwner returns(uint) {
-        require(status == WorkflowStatus.VotingSessionEnded, "Invalid Step");
+    function defineWinner() public onlyOwner checkStatus(WorkflowStatus.VotingSessionEnded) returns(uint) {
         require(numberProposals > 0, "Error, no proposal");
         for (uint i = 0; i < numberProposals; i++) {
             if (proposals[winningProposalId].voteCount < proposals[i].voteCount)
@@ -141,13 +140,11 @@ contract Voting is Ownable {
         return winningProposalId;
     }
     
-    function getWinner() public view returns(string memory) {
-        require(status == WorkflowStatus.VotesTallied, "Invalid Step");
+    function getWinner() public view checkStatus(WorkflowStatus.VotesTallied) returns(string memory) {
         return string(proposals[winningProposalId].description);
     }
     
-    function whoDidYouVoteFor(address _address) public view returns(uint) {
-        require(status == WorkflowStatus.VotesTallied, "Invalid Step");
+    function whoDidYouVoteFor(address _address) public view checkStatus(WorkflowStatus.VotesTallied) returns(uint) {
         return voters[_address].votedProposalId;
     }
 }
